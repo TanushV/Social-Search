@@ -1,4 +1,4 @@
-# Multisource Research Assistant
+# Vociro — Multisource Research Assistant
 
 A command-line helper that spins up one or more autonomous **search agents** powered by OpenAI (o3 or o4-mini).  Each agent can gather information from:
 
@@ -36,11 +36,11 @@ Quickly answer exploratory questions that benefit from perspectives across tradi
 
 ```bash
 # Clone & enter workspace
-$ git clone <repo> && cd Social-Search
+$ git clone <repo> && cd vociro
 
 # Recommended: Python 3.10+
 $ python -m venv .venv && source .venv/bin/activate
-$ pip install -r requirements.txt  # see below
+$ pip install vociro
 ```
 
 ### Required Python packages
@@ -69,7 +69,7 @@ Place them in `.env` for convenience.
 ## Usage
 
 ```bash
-$ python search_assistant.py  # or socialsearch init
+$ python search_assistant.py  # or vociro init
 ```
 
 1. Clarification phase — the assistant asks follow-up questions until it proposes a final objective:
@@ -102,7 +102,7 @@ The agent is encouraged to perform deep dives (many tool calls) on Reddit and Bl
 If you want a totally non-interactive run you can feed inputs through stdin, e.g.
 
 ```bash
-echo -e "My question\nz\n\n\no4-mini\no3\n" | socialsearch init | cat
+echo -e "My question\nz\n\n\no4-mini\no3\n" | vociro init | cat
 ```
 
 (The first `z` skips clarifications.)

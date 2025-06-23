@@ -341,7 +341,7 @@ def gather_results_for_query(query: str, tools: List[Dict[str, Any]], *, agent_m
         {
             "role": "system",
             "content": (
-                "You are a SocialSearch agent focused on measuring USER SENTIMENT. Deep-dive: make as many tool calls as necessary (do NOT worry about limits) to capture diverse viewpoints. Prioritise Reddit for opinions & pain points, Bluesky for fresh takes, and use Web only if social tools are empty. After gathering, summarise sentiment strictly from tool results; do NOT hallucinate."
+                "You are a Vociro agent focused on measuring USER SENTIMENT. Deep-dive: make as many tool calls as necessary (do NOT worry about limits) to capture diverse viewpoints. Prioritise Reddit for opinions & pain points, Bluesky for fresh takes, and use Web only if social tools are empty. After gathering, summarise sentiment strictly from tool results; do NOT hallucinate."
             ),
         },
         {"role": "user", "content": query},
@@ -411,7 +411,7 @@ def produce_final_report(question: str, summaries: List[str], tools: List[Dict[s
 # ---------------------------------------------------------------------------
 
 def run():
-    console.rule("Multisource Research Assistant")
+    console.rule("Vociro — Multisource Research Assistant")
     initial_question = Prompt.ask("Enter your research question")
 
     # Clarification loop returns refined objective and dialog context

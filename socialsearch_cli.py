@@ -5,7 +5,7 @@ from search_assistant import run
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Multisource social/web search assistant",
-        prog="socialsearch",
+        prog="vociro",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 

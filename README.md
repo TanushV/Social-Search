@@ -1,6 +1,6 @@
-# Vociro — Multisource Research Assistant
+# Vociro — Social-Media Search Assistant
 
-A command-line helper that spins up one or more autonomous **search agents** powered by OpenAI (o3 or o4-mini).  Each agent can gather information from:
+A command-line tool that launches autonomous **social-media search agents** powered by OpenAI (o3 or o4-mini).  Each agent can gather information from:
 
 * DuckDuckGo Web Search (HTML scrape)
 * Reddit posts (plus top comments)

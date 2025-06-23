@@ -72,11 +72,16 @@ Place them in `.env` for convenience.
 $ python search_assistant.py  # or socialsearch init
 ```
 
-1. Clarification phase — the assistant may ask one or more follow-up questions until it prints `READY: <objective>` or you press `z` to skip.
+1. Clarification phase — the assistant asks follow-up questions until it proposes a final objective:
+
+   ```
+   READY: <concise objective>
+   ```
+   You must then confirm with `y` (accept) or `n` (explain why, loop continues). Press `z` at any prompt to skip the phase entirely.
 
 2. Source selection  
-   • Reddit and Bluesky are always on (they provide user-sentiment).  
-   • You can optionally add DuckDuckGo Web by answering `y` to the prompt.
+   • Reddit **and** Bluesky are always enabled (sentiment sources).  
+   • DuckDuckGo Web search is optional (default **n**).
 
 3. Model selection / number of agents — same as before.
 

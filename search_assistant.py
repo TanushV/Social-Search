@@ -526,11 +526,21 @@ def clarification_phase(initial_q: str, model: str = O3_MODEL):
         _add_usage(model, resp)
         reply = resp.choices[0].message.content.strip()
         if reply.upper().startswith("READY:"):
-            objective = reply[len("READY:"):].strip()
-            if not objective:
-                objective = initial_q
-            dialog_str = "\n".join(dialog_log)
-            return objective, dialog_str
+            objective = reply[len("READY:"):].strip() or initial_q
+            print(f"[green]{reply}[/green]")
+            confirm = Prompt.ask("Is this an accurate objective? (y/n)", default="y")
+            if confirm.lower().startswith("y"):
+                dialog_str = "\n".join(dialog_log)
+                return objective, dialog_str
+            # user disagrees -> solicit reason and continue loop
+            reason = Prompt.ask("Please provide clarification (or 'z' to skip)")
+            if reason.lower() == 'z':
+                dialog_str = "\n".join(dialog_log)
+                return objective, dialog_str
+            dialog_log.append(f"USER: {reason}")
+            messages.append({"role": "assistant", "content": reply})
+            messages.append({"role": "user", "content": reason})
+            continue
         print(f"[yellow]{reply}[/yellow]")
         user_ans = Prompt.ask("Your answer (or 'z' to skip)")
         if user_ans.lower() == 'z':

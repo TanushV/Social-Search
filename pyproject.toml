@@ -21,7 +21,7 @@ dependencies = [
 socialsearch = "socialsearch_cli:main"
 
 [tool.hatch.build]
-include = [
-    "README.md",
-    "LICENSE",
-] 
+packages = ["."]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."] 

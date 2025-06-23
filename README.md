@@ -35,28 +35,16 @@ Quickly answer exploratory questions that benefit from perspectives across tradi
 ## Installation
 
 ```bash
-# Clone & enter workspace
-$ git clone <repo> && cd vociro
+# (optional) create and activate a virtual environment
+python -m venv .venv && source .venv/bin/activate
 
-# Recommended: Python 3.10+
-$ python -m venv .venv && source .venv/bin/activate
-$ pip install vociro
+# install from PyPI
+pip install vociro
 ```
-
-### Required Python packages
-
-The project purposely avoids heavy dependencies.  Install the few we need:
-
-```text
-openai>=1.13
-requests>=2.31
-rich>=13.7  # optional but nice colours
-python-dotenv>=1.0  # optional env-file support
-```
-
-Create a `requirements.txt` with the above if you prefer `pip -r`.
 
 ## Environment variables
+
+Set the following variables **in your terminal session** before running Vociro (no .env file is used):
 
 | Variable | Purpose |
 |----------|---------|
@@ -64,12 +52,20 @@ Create a `requirements.txt` with the above if you prefer `pip -r`.
 | `REDDIT_CLIENT_ID` & `REDDIT_CLIENT_SECRET` | Reddit app credentials |
 | `BLUESKY_HANDLE` & `BLUESKY_APP_PASSWORD` | Bluesky login (optional – improves rate-limits) |
 
-Place them in `.env` for convenience.
+Examples (Unix shells):
+```bash
+export OPENAI_API_KEY="sk-..."
+export REDDIT_CLIENT_ID="abc" REDDIT_CLIENT_SECRET="xyz"
+```
+Windows (PowerShell):
+```powershell
+setx OPENAI_API_KEY "sk-..."
+```
 
 ## Usage
 
 ```bash
-$ python search_assistant.py  # or vociro init
+vociro init  # start an interactive research session
 ```
 
 1. Clarification phase — the assistant asks follow-up questions until it proposes a final objective:

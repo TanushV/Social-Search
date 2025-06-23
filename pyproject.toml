@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vociro"
-version = "0.1.0"
+version = "0.1.1"
 requires-python = ">=3.9"
 description = "Multisource sentiment-focused research assistant (Reddit, Bluesky, optional Web)."
 readme = "README.md"

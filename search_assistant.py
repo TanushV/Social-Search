@@ -377,7 +377,7 @@ def gather_results_for_query(query: str, tools: List[Dict[str, Any]], *, agent_m
             continue  # continue agent loop
 
         messages.append(msg)
-        summary = msg.content.strip()
+        summary = (msg.content or "").strip()
         return summary, call_logs
 
 
@@ -403,7 +403,7 @@ def produce_final_report(question: str, summaries: List[str], tools: List[Dict[s
             print(f"[yellow]{report_model} requested another search: {reason}[/yellow]")
             return False, reason
 
-        return True, msg.content.strip()
+        return True, (msg.content or "").strip()
 
 
 # ---------------------------------------------------------------------------
@@ -454,6 +454,7 @@ def run():
         print(f"[bold]Queries:[/bold] {searches}")
 
         summaries: List[str] = []
+        agent_logs: List[Dict[str, Any]] = []
         for q in searches:
             console.rule(f"Search — {q}")
             summary, call_logs = gather_results_for_query(q, tools, agent_model=agent_model)
@@ -467,6 +468,7 @@ def run():
             print(f"[green]Total cost so far: ${_current_cost():.4f}[/green]\n")
 
             summaries.append(f"### {q}\n{summary}")
+            agent_logs.append({"query": q, "tool_calls": call_logs})
 
         console.rule(f"Compiling final report with {report_model} ...")
         ok, report_or_reason = produce_final_report(question, summaries, tools, report_model=report_model)
@@ -563,6 +565,73 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         # If reconfigure isn't supported (older Python or redirected I/O), ignore.
         pass
+
+# ---------------------------------------------------------------------------
+# Public wrapper -------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
+def search(
+    question: str,
+    *,
+    include_web: bool = False,
+    agent_model: str = "o3",
+    report_model: str = "o3",
+    max_agents: int | None = None,
+    return_json: bool = False,
+):
+    """Run a complete Vociro search programmatically and return the final report.
+
+    Parameters
+    ----------
+    question : str
+        The research question / objective.
+    include_web : bool, default False
+        Whether to search the public web (DuckDuckGo) in addition to Reddit & Bluesky.
+    agent_model : {"o3", "o4-mini"}, default "o3"
+        OpenAI model identifier for the search agents.
+    report_model : {"o3", "o4-mini"}, default "o3"
+        Model used to compile the final report.
+    max_agents : int | None, optional
+        Maximum number of generated search queries (agents). None = auto (3-8).
+    return_json : bool, default False
+        Whether to return the result as a JSON object including tool calls.
+
+    Returns
+    -------
+    str | dict[str, Any]
+        By default a Markdown report string.  If *return_json* is True, a dict
+        with keys:
+
+        * "response" – compiled report (Markdown)
+        * "agents" – list of objects `{"query", "tool_calls"}`
+    """
+
+    sources: list[str] = ["reddit", "bsky"]
+    if include_web:
+        sources.append("web")
+
+    agent_model_id = O3_MODEL if str(agent_model).startswith("o3") else O4_MODEL
+    report_model_id = O3_MODEL if str(report_model).startswith("o3") else O4_MODEL
+
+    tools = build_tool_specs(sources)
+
+    searches = generate_search_queries(question, strategy_model=agent_model_id, max_queries=max_agents)
+    summaries: list[str] = []
+    agent_logs: list[dict[str, Any]] = []
+    for q in searches:
+        summary, call_logs = gather_results_for_query(q, tools, agent_model=agent_model_id)
+        summaries.append(f"### {q}\n{summary}")
+        agent_logs.append({"query": q, "tool_calls": call_logs})
+
+    ok, report = produce_final_report(question, summaries, tools, report_model=report_model_id)
+    if ok and (not report or not report.strip()):
+        # Rare edge-case: model returned empty content. Fallback to concatenated summaries.
+        report = "\n\n".join(summaries)
+
+    if return_json:
+        return {"response": report, "agents": agent_logs, "queries": searches}
+    return report
+
 
 if __name__ == "__main__":
     run() 

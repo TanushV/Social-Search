@@ -119,4 +119,21 @@ echo -e "My question\nz\n\n\no4-mini\no3\n" | vociro init | cat
 
 ## License
 
-MIT – do what you like, just don't blame me. 
+MIT – do what you like, just don't blame me.
+
+### Programmatic usage
+
+```python
+from vociro import search
+
+report = search(
+    "What do Reddit and Bluesky users think about Apple Vision Pro?",
+    include_web=False,      # add DuckDuckGo by passing True
+    agent_model="o3",      # or "o4-mini"
+    report_model="o3",
+    max_agents=6,           # optional – auto 4-8 if None
+)
+print(report)
+```
+
+The helper wraps the same three-stage flow used by the CLI—generate queries, gather results, compile report—and returns the final Markdown string. 

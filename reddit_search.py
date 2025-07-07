@@ -52,6 +52,7 @@ def fetch_posts_and_comments(
     client_id: str | None = None,
     client_secret: str | None = None,
     user_agent: str = "reddit_search/0.1 (by github.com/example)",
+    time_filter: str | None = None,
 ) -> List[Dict[str, Any]]:
     """Search Reddit and return posts along with their top comments.
 
@@ -69,6 +70,8 @@ def fetch_posts_and_comments(
         variables.  You can obtain these at https://www.reddit.com/prefs/apps.
     user_agent:
         A descriptive user-agent string.  Reddit requires this header.
+    time_filter:
+        Optional time filter for Reddit search.  Possible values: "hour", "day", "week", "month", "year", "all".
 
     Returns
     -------
@@ -98,6 +101,10 @@ def fetch_posts_and_comments(
         "sort": "new",  # you can change to 'relevance', 'top', etc.
         "type": "link",  # only return link (i.e. post) results
     }
+
+    # Optional time filter (hour, day, week, month, year, all)
+    if time_filter is not None:
+        search_params["t"] = time_filter
 
     search_resp = requests.get(
         "https://oauth.reddit.com/search",

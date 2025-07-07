@@ -329,7 +329,9 @@ def generate_search_queries(question: str, *, strategy_model: str, context: str 
     _add_usage(strategy_model, resp)
     data = json.loads(resp.choices[0].message.content)
     queries: List[str] = data.get("queries", [])
+    # Enforce hard upper-bound of 100 searches to avoid runaway cost.
     if max_queries:
+        max_queries = min(max_queries, 100)
         queries = queries[:max_queries]
     return queries
 
@@ -347,12 +349,26 @@ def gather_results_for_query(query: str, tools: List[Dict[str, Any]], *, agent_m
         {"role": "user", "content": query},
     ]
 
+    max_rounds = 20  # safeguard to avoid infinite tool loops
+    rounds = 0
     while True:
-        resp = client.chat.completions.create(model=agent_model, messages=messages, tools=tools, tool_choice="auto")
+        if rounds >= max_rounds:
+            # Stop the loop and return whatever we have
+            summary = "[aborted] tool loop exceeded safety limit"
+            return summary, call_logs
+
+        resp = client.chat.completions.create(
+            model=agent_model,
+            messages=messages,
+            tools=tools,
+            tool_choice="auto",
+        )
         _add_usage(agent_model, resp)
         msg = resp.choices[0].message
 
         if msg.tool_calls:
+            # Append assistant message ONCE, then handle each tool call
+            messages.append(msg)
             for tc in msg.tool_calls:
                 name = tc.function.name
                 args = json.loads(tc.function.arguments)
@@ -364,8 +380,7 @@ def gather_results_for_query(query: str, tools: List[Dict[str, Any]], *, agent_m
                 # record call log
                 call_logs.append({"name": name, "args": args})
 
-                # Echo to model
-                messages.append(msg)
+                # Echo tool result back to model
                 messages.append(
                     {
                         "role": "tool",
@@ -374,8 +389,10 @@ def gather_results_for_query(query: str, tools: List[Dict[str, Any]], *, agent_m
                         "content": result,
                     }
                 )
+            rounds += 1
             continue  # continue agent loop
 
+        # No tool calls → agent produced its summary
         messages.append(msg)
         summary = (msg.content or "").strip()
         return summary, call_logs
@@ -393,14 +410,28 @@ def produce_final_report(question: str, summaries: List[str], tools: List[Dict[s
         {"role": "assistant", "content": "\n\n".join(summaries)},
     ]
 
+    max_rounds = 5  # avoid endless redo loops
+    rounds = 0
     while True:
-        resp = client.chat.completions.create(model=report_model, messages=messages, tools=tools, tool_choice="auto")
+        if rounds >= max_rounds:
+            # Give up and return concatenated summaries
+            fallback = "\n\n".join(summaries)
+            return True, fallback
+
+        resp = client.chat.completions.create(
+            model=report_model,
+            messages=messages,
+            tools=tools,
+            tool_choice="auto",
+        )
         _add_usage(report_model, resp)
         msg = resp.choices[0].message
 
         if msg.tool_calls and msg.tool_calls[0].function.name == "redo_search":
             reason = json.loads(msg.tool_calls[0].function.arguments)["reason"]
-            print(f"[yellow]{report_model} requested another search: {reason}[/yellow]")
+            print(
+                f"[yellow]{report_model} requested another search: {reason}[/yellow]",
+            )
             return False, reason
 
         return True, (msg.content or "").strip()
@@ -442,6 +473,9 @@ def run():
     # ----------------------------------------
     agents_raw = Prompt.ask("Maximum number of search agents (press Enter for auto)", default="")
     max_agents = int(agents_raw) if agents_raw.isdigit() and int(agents_raw) > 0 else None
+    if max_agents and max_agents > 100:
+        print("[yellow]Capping maximum agents to 100.[/yellow]")
+        max_agents = 100
 
     tools = build_tool_specs(sources)
 
@@ -523,7 +557,14 @@ def clarification_phase(initial_q: str, model: str = O3_MODEL):
         {"role": "user", "content": initial_q},
     ]
     dialog_log = [f"USER: {initial_q}"]
+    max_turns = 10  # prevent infinite questioning
+    turns = 0
     while True:
+        if turns >= max_turns:
+            objective = initial_q
+            dialog_str = "\n".join(dialog_log)
+            return objective, dialog_str
+
         resp = client.chat.completions.create(model=model, messages=messages)
         _add_usage(model, resp)
         reply = resp.choices[0].message.content.strip()
@@ -542,6 +583,7 @@ def clarification_phase(initial_q: str, model: str = O3_MODEL):
             dialog_log.append(f"USER: {reason}")
             messages.append({"role": "assistant", "content": reply})
             messages.append({"role": "user", "content": reason})
+            turns += 1
             continue
         print(f"[yellow]{reply}[/yellow]")
         user_ans = Prompt.ask("Your answer (or 'z' to skip)")
@@ -553,6 +595,7 @@ def clarification_phase(initial_q: str, model: str = O3_MODEL):
         dialog_log.append(f"USER: {user_ans}")
         messages.append({"role": "assistant", "content": reply})
         messages.append({"role": "user", "content": user_ans})
+        turns += 1
 
 
 # ----------------------------------------------------------------------------
@@ -615,7 +658,14 @@ def search(
 
     tools = build_tool_specs(sources)
 
-    searches = generate_search_queries(question, strategy_model=agent_model_id, max_queries=max_agents)
+    if max_agents and max_agents > 100:
+        max_agents = 100  # enforce global safety cap
+
+    searches = generate_search_queries(
+        question,
+        strategy_model=agent_model_id,
+        max_queries=max_agents,
+    )
     summaries: list[str] = []
     agent_logs: list[dict[str, Any]] = []
     for q in searches:

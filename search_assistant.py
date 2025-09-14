@@ -6,8 +6,6 @@ from typing import Any, Dict, List, DefaultDict, Optional
 # NEW IMPORTS --------------------------------------------------------------
 # Remove dependency on api_clients and instead use our local helper modules.
 from bluesky_search import BlueskyClient  # type: ignore
-from reddit_search import fetch_posts_and_comments  # type: ignore
-from reddit_analysis import compute_volume_trend  # type: ignore
 from reddit_enhanced import search_reddit_full  # type: ignore
 import requests
 import re
@@ -176,17 +174,17 @@ def build_tool_specs(sources: List[str]) -> List[Dict[str, Any]]:
                 "type": "function",
                 "function": {
                     "name": "search_reddit",
-                    "description": "Return Reddit posts and their top comments relevant to the query.",
+                    "description": "Return BM25-ranked Reddit posts (full text + top comments) plus a volume-trend snapshot. Results are limited to the top *top_k* posts (default 5) most relevant to the query.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "query": {"type": "string", "description": "Search string"},
-                            "limit": {
+                            "top_k": {
                                 "type": "integer",
-                                "description": "Maximum number of posts (<=25)",
-                                "default": 10,
+                                "description": "Number of posts to return after BM25 ranking (<=25)",
+                                "default": 5,
                             },
-                            "comments_limit": {
+                            "comment_limit": {
                                 "type": "integer",
                                 "description": "Top comments per post (<=10)",
                                 "default": 5,
@@ -241,38 +239,6 @@ def build_tool_specs(sources: List[str]) -> List[Dict[str, Any]]:
             }
         )
 
-    # Reddit trend analytics tool -------------------------------------------------
-    if "reddit" in sources:
-        specs.append(
-            {
-                "type": "function",
-                "function": {
-                    "name": "reddit_search_full",
-                    "description": (
-                        "Fetch up to 100 Reddit posts, rank them with BM25, return the top-k (with comments) "
-                        "and include a volume trend snapshot comparing the last 24 h to the previous week."
-                    ),
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "query": {"type": "string", "description": "Search string"},
-                            "top_k": {
-                                "type": "integer",
-                                "description": "Number of top posts to return (<=25)",
-                                "default": 20,
-                            },
-                            "comment_limit": {
-                                "type": "integer",
-                                "description": "Number of top-level comments per post (<=10)",
-                                "default": 5,
-                            },
-                        },
-                        "required": ["query"],
-                    },
-                },
-            }
-        )
-
     # Allow the report agent to trigger another search cycle if needed
     specs.append(
         {
@@ -305,8 +271,11 @@ def execute_tool(name: str, args: Dict[str, Any]) -> str:
         return json.dumps(results)
 
     if name == "search_reddit":
-        comments_limit = int(args.get("comments_limit", 5))
-        data = fetch_posts_and_comments(query, post_limit=limit, comment_limit=comments_limit)
+        top_k = int(args.get("top_k", 5))
+        top_k = max(1, min(top_k, 25))  # safety
+        comment_limit = int(args.get("comment_limit", 5))
+        comment_limit = max(0, min(comment_limit, 10))
+        data = search_reddit_full(query, top_k=top_k, comment_limit=comment_limit)
         return json.dumps(data)
 
     if name == "search_bsky":
@@ -322,12 +291,6 @@ def execute_tool(name: str, args: Dict[str, Any]) -> str:
             min_reposts=min_reposts,
             min_replies=min_replies,
         )
-        return json.dumps(data)
-
-    if name == "reddit_search_full":
-        top_k = int(args.get("top_k", 20))
-        comment_limit = int(args.get("comment_limit", 5))
-        data = search_reddit_full(query, top_k=top_k, comment_limit=comment_limit)
         return json.dumps(data)
 
     if name == "redo_search":
